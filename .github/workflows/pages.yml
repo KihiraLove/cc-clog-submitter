@@ -21,6 +21,7 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pages: write
@@ -33,7 +34,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Assemble published files only
+        run: |
+          mkdir -p _site/assets _site/data _site/src
+          cp index.html styles.css .nojekyll _site/
+          cp assets/dummy-submission.png _site/assets/
+          cp data/items.json _site/data/
+          cp src/app.js src/submission.js _site/src/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
-      - uses: actions/deploy-pages@v4
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: 180000
+          reporting_interval: 10000
+      - name: Explain a stalled deployment
+        if: failure()
+        run: |
+          echo "::error::Pages deployment did not finish. If the deploy-pages logs show repeated 'updating_pages' after a successful artifact upload, the deployment is stuck in GitHub Pages infrastructure, not the website build."
+          echo "::error::Check https://www.githubstatus.com/ and Pages settings (GitHub Actions source); retry the workflow when Pages recovers. If it persists, contact GitHub Support with the run URL."

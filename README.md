@@ -57,3 +57,22 @@ The API deliberately rejects BETA_WORLD, DEADMAN, NOSAVE_MODE, PVP_ARENA, QUEST_
 The backend must have a matching active game item ID and configured clan policy or it can return 403/422. A 201 receipt may be pending rather than approved. The browser cannot distinguish a failed CORS handshake from some network failures, so a failed request retains its idempotency key for replay instead of generating another submission.
 
 See Vardorvis-clan-clog/docs/runelite-submissions.md for the full contract.
+
+
+### Troubleshooting GitHub Pages deployment stalls
+
+The initial deployment on 15 October 2026 passed validation and uploaded its artifact,
+but GitHub Pages kept reporting `updating_pages` until the run was manually cancelled.
+This is **not a workflow self-triggering loop**: `actions/deploy-pages` waits for a status
+update from GitHub's Pages deployment service. Similar service-side failures have been
+reported on other repositories. The workflow now packages only the actual website
+files and limits deployment polling to three minutes (five minutes total for the job).
+If the Pages backend stalls, it fails with a diagnostic rather than requiring
+manual cancellation; it cannot fix an outage in GitHub's infrastructure.
+
+If this happens:
+1. Confirm **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
+2. Open the failed workflow's **Deploy to GitHub Pages** logs. If upload succeeded but
+   `updating_pages` repeats, check https://www.githubstatus.com/ and retry when Pages recovers.
+3. If multiple retries continue to stall, contact GitHub Support with the failing run URL
+   and deployment SHA. Avoid repeatedly pushing empty commits or cancelling deployments.
