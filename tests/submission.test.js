@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   EXTRA_WORLD_TYPES,BLOCKED_WORLD_TYPES,COOKIE_NAME,worldFlags,
-  normalizeEndpoint,itemOptions,encodeClanKey,readCookieSettings,writeCookieSettings
+  normalizeEndpoint,itemOptions,encodeClanKey,readCookieSettings,writeCookieSettings,submissionKey
 } from "../src/submission.js";
 test("14 supported extra world types and membership",()=>{
   assert.equal(EXTRA_WORLD_TYPES.length,14);
@@ -34,4 +34,42 @@ test("cookie settings roundtrip strips any secret",()=>{
   const value=serialized.split(";")[0];
   assert.deepEqual(readCookieSettings(value),{endpoint:"https://a.test",username:"A"});
   assert.deepEqual(readCookieSettings(COOKIE_NAME+"=%7Binvalid"),{});
+});
+
+test("idempotency is random per submission by default and reused only while checked",()=>{
+  let counter=0;
+  const generate=()=>`uuid-${++counter}`;
+  let lastKey=submissionKey(null,false,generate);
+  assert.equal(lastKey,"uuid-1");
+  lastKey=submissionKey(lastKey,false,generate);
+  assert.equal(lastKey,"uuid-2");
+  lastKey=submissionKey(lastKey,true,generate);
+  assert.equal(lastKey,"uuid-2");
+  lastKey=submissionKey(lastKey,true,generate);
+  assert.equal(lastKey,"uuid-2");
+  // Unchecking resets lastKey in the event handler; subsequent submissions get a new UUID.
+  lastKey=null;
+  lastKey=submissionKey(lastKey,false,generate);
+  assert.equal(lastKey,"uuid-3");
+});
+test("requested copy removed and item picker uses accessible result buttons",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+  const app=await readFile(new URL("../src/app.js",import.meta.url),"utf8");
+  for(const forbidden of [
+    "Test your RuneLite collection-log submission API with a sample item and screenshot.",
+    "The API key stays in this tab; other settings are saved in a cookie.",
+    "HTTPS base URL or full /api/v1/runelite/submissions URL",
+    "Leave blank only if the server has disabled key enforcement. Never saved in cookies.",
+    "Fields sent to the API as multipart/form-data.",
+    "Retained after failed requests for safe retries.",
+    "Static frontend · Sends requests only to your configured endpoint · Key stays in memory",
+    "github.com/KihiraLove/",'id="item-count"','id="item-id"',"screenshot-preview",
+    'id="idempotency-key"','id="new-key"'
+  ])assert.ok(!html.includes(forbidden),forbidden);
+  assert.match(html,/id="item-results"/u);
+  assert.match(html,/id="keep-idempotency-key" type="checkbox"/u);
+  assert.match(html,/Don't regenerate idempotency key \(only check this if you know what you're doing\)/u);
+  assert.match(app,/button\.setAttribute\("aria-pressed"/u);
+  assert.match(app,/body\.append\("screenshot",await sampleScreenshot\(\)\)/u);
 });

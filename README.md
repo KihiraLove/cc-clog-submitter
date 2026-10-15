@@ -5,10 +5,10 @@ A browser-only test frontend for the RuneLite collection log submission API used
 ## Features
 
 - Enter an HTTPS API endpoint or base URL, clan API key, RuneScape username and in-game clan name.
-- Search and choose from 1,717 OSRS game item IDs, copied from Vardorvis-clan-clog's catalog/sources/items.json. The submitted ID is a game item ID (not the canonical collection-log database item ID).
+- Search and click an item in the scrollable results section containing 1,717 OSRS game item IDs, copied from Vardorvis-clan-clog's catalog/sources/items.json. The submitted ID is a game item ID (not the canonical collection-log database item ID).
 - Select F2P or MEMBERS and optionally one of the 14 requested world flags. The frontend sends a JSON array in the multipart worldType field.
-- Uploads assets/dummy-submission.png as the screenshot field. This 1920x1080 file is a losslessly optimized, pixel-perfect RGB equivalent of the attachment.
-- Random UUIDv4 Idempotency-Key: retained after rejected requests or network errors for retry, regenerated when a field changes, after a success, or using New key.
+- Silently uploads assets/dummy-submission.png as the screenshot field on every request. This 1920x1080 file is a losslessly optimized, pixel-perfect RGB equivalent of the attachment; it is not displayed in the form.
+- New random UUIDv4 Idempotency-Key for each submission by default. The "Don't regenerate idempotency key" checkbox reuses the most recently used key until unchecked. A retry with the same key and changed payload may yield HTTP 409.
 - Shows the HTTP status and response body.
 - Stores the endpoint, username, clan name, selected item, membership, and extra world flag in a 180-day cookie (Secure over HTTPS; SameSite=Strict). No cookie banner or analytics. The clan API key is never saved and lives only in the open tab.
 
@@ -54,7 +54,7 @@ Headers: Idempotency-Key: UUID and optionally X-Clan-API-Key-Base64: Base64url-e
 
 The API deliberately rejects BETA_WORLD, DEADMAN, NOSAVE_MODE, PVP_ARENA, QUEST_SPEEDRUNNING, SEASONAL and TOURNAMENT_WORLD with HTTP 403. This is useful for testing. The API also treats HARDCORE_MAIN as an ordinary world flag; hardcore credit currently requires HC_WORLD_PLACEHOLDER or HC_WORLDS_PLACEHOLDER (not exposed in the requested dropdown).
 
-The backend must have a matching active game item ID and configured clan policy or it can return 403/422. A 201 receipt may be pending rather than approved. The browser cannot distinguish a failed CORS handshake from some network failures, so a failed request retains its idempotency key for replay instead of generating another submission.
+The backend must have a matching active game item ID and configured clan policy or it can return 403/422. A 201 receipt may be pending rather than approved. The browser cannot distinguish a failed CORS handshake from some network failures. If retrying an uncertain request outcome, check the idempotency checkbox **before resubmitting** to retain the previous key; unchecked requests always generate new keys.
 
 See Vardorvis-clan-clog/docs/runelite-submissions.md for the full contract.
 

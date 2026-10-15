@@ -1,21 +1,21 @@
 import {
   BLOCKED_WORLD_TYPES, COOKIE_NAME, cookiePath, encodeClanKey, itemOptions,
-  normalizeEndpoint, readCookieSettings, worldFlags, writeCookieSettings
+  normalizeEndpoint, readCookieSettings, submissionKey, worldFlags, writeCookieSettings
 } from "./submission.js";
 const el=(id)=>document.getElementById(id);
 const form=el("submission-form"),endpoint=el("endpoint"),clanKey=el("api-key");
 const username=el("username"),clanName=el("clan-name"),itemSearch=el("item-search");
-const itemSelect=el("item-id"),itemCount=el("item-count"),worldType=el("world-type");
-const keyInput=el("idempotency-key"),notice=el("notice"),submitButton=el("submit");
+const itemResults=el("item-results"),selectedItem=el("selected-item"),worldType=el("world-type");
+const keepKey=el("keep-idempotency-key"),notice=el("notice"),submitButton=el("submit");
 const responseSection=el("response-section"),responseBody=el("response-body");
 const responseDescription=el("response-description");
 const saved=readCookieSettings(document.cookie);
-let allItems=[],pending=false,screenshot=null,initialItemId=saved.itemId||"";
+let allItems=[],pending=false,screenshot=null,selectedItemId=saved.itemId||"",lastKey=null;
 function membership(){return form.querySelector('input[name="membership"]:checked').value;}
-function newKey(){keyInput.value=crypto.randomUUID();}
+
 function preferences(){
   return {endpoint:endpoint.value,username:username.value,clanName:clanName.value,
-    itemId:itemSelect.value,membership:membership(),worldType:worldType.value};
+    itemId:selectedItemId,membership:membership(),worldType:worldType.value};
 }
 function remember(){
   document.cookie=writeCookieSettings(preferences(),location.pathname,location.protocol==="https:");
@@ -34,17 +34,34 @@ function updateWorldNote(){
     note.textContent="HARDCORE_MAIN does not mark a submission as hardcore in the current API; only HC_WORLD_PLACEHOLDER / HC_WORLDS_PLACEHOLDER do.";
   }else note.textContent="World flags sent: "+JSON.stringify(flags);
 }
+function updateSelectedItem(){
+  const item=allItems.find(entry=>entry.id===selectedItemId);
+  selectedItem.textContent=item?"Selected: "+item.name+" (ID "+item.id+")":"No item selected";
+}
 function drawItems(){
   const query=itemSearch.value.trim().toLowerCase();
-  const selected=itemSelect.value||initialItemId;
-  const filtered=query?allItems.filter(item=>item.name.toLowerCase().includes(query)||item.id.includes(query)):allItems;
-  itemSelect.replaceChildren();
-  itemSelect.add(new Option(filtered.length?"Choose an item…":"No matching items",""));
-  for(const item of filtered)itemSelect.add(new Option(item.name+" (ID "+item.id+")",item.id));
-  if(filtered.some(item=>item.id===selected))itemSelect.value=selected;
-  itemSelect.disabled=!filtered.length;
-  itemCount.textContent=filtered.length+" of "+allItems.length+" item IDs";
-  initialItemId="";
+  const filtered=query?allItems.filter(item=>
+    item.name.toLowerCase().includes(query)||item.id.includes(query)):allItems;
+  const fragment=document.createDocumentFragment();
+  if(!filtered.length){
+    const message=document.createElement("p");
+    message.className="item-message";
+    message.textContent=allItems.length?"No matching items.":"Catalogue unavailable.";
+    fragment.append(message);
+  }else{
+    for(const item of filtered){
+      const button=document.createElement("button");
+      button.type="button";
+      button.className="item-choice";
+      button.dataset.itemId=item.id;
+      button.setAttribute("aria-pressed",String(item.id===selectedItemId));
+      button.textContent=item.name+" (ID "+item.id+")";
+      fragment.append(button);
+    }
+  }
+  itemResults.replaceChildren(fragment);
+  itemResults.setAttribute("aria-busy","false");
+  updateSelectedItem();
 }
 async function loadItems(){
   try{
@@ -52,8 +69,17 @@ async function loadItems(){
     if(!response.ok)throw new Error("HTTP "+response.status);
     allItems=itemOptions(await response.json());
     if(!allItems.length)throw new Error("No items in catalogue.");
+    if(!allItems.some(item=>item.id===selectedItemId))selectedItemId="";
     drawItems();
-  }catch(error){itemCount.textContent="Could not load items";showNotice("Item catalogue: "+error.message,"error");}
+  }catch(error){
+    itemResults.setAttribute("aria-busy","false");
+    itemResults.replaceChildren();
+    const message=document.createElement("p");
+    message.className="item-message";
+    message.textContent="Could not load items.";
+    itemResults.append(message);
+    showNotice("Item catalogue: "+error.message,"error");
+  }
 }
 async function sampleScreenshot(){
   if(!screenshot){
@@ -68,17 +94,28 @@ username.value=saved.username||"";
 clanName.value=saved.clanName||"";
 worldType.value=saved.worldType||"";
 form.querySelector('input[name="membership"][value="'+(saved.membership==="F2P"?"F2P":"MEMBERS")+'"]').checked=true;
-newKey();updateWorldNote();void loadItems();
-for(const field of [endpoint,username,clanName,itemSelect,worldType]){
-  field.addEventListener("change",()=>{if(!pending){newKey();remember();updateWorldNote();}});
+updateWorldNote();void loadItems();
+for(const field of [endpoint,username,clanName,worldType]){
+  field.addEventListener("change",()=>{if(!pending){remember();updateWorldNote();}});
 }
 for(const field of [endpoint,username,clanName]){
-  field.addEventListener("input",()=>{if(!pending){newKey();remember();}});
+  field.addEventListener("input",()=>{if(!pending)remember();});
 }
 for(const radio of form.querySelectorAll('input[name="membership"]'))
-  radio.addEventListener("change",()=>{if(!pending){newKey();remember();updateWorldNote();}});
+  radio.addEventListener("change",()=>{if(!pending){remember();updateWorldNote();}});
 itemSearch.addEventListener("input",drawItems);
-el("new-key").addEventListener("click",()=>{newKey();showNotice("A new idempotency key has been generated.");});
+itemResults.addEventListener("click",(event)=>{
+  const choice=event.target.closest("button[data-item-id]");
+  if(pending||!choice||!itemResults.contains(choice))return;
+  selectedItemId=choice.dataset.itemId;
+  for(const button of itemResults.querySelectorAll("button[data-item-id]"))
+    button.setAttribute("aria-pressed",String(button===choice));
+  updateSelectedItem();
+  remember();
+});
+keepKey.addEventListener("change",()=>{
+  if(!keepKey.checked)lastKey=null;
+});
 el("toggle-key").addEventListener("click",()=>{
   clanKey.type=clanKey.type==="password"?"text":"password";
   el("toggle-key").textContent=clanKey.type==="password"?"Show":"Hide";
@@ -87,7 +124,7 @@ el("clear-settings").addEventListener("click",()=>{
   document.cookie=COOKIE_NAME+"=; Path="+cookiePath(location.pathname)+"; Max-Age=0; SameSite=Strict"+
     (location.protocol==="https:"?"; Secure":"");
   form.reset();endpoint.value="";username.value="";clanName.value="";clanKey.value="";
-  itemSearch.value="";initialItemId="";drawItems();newKey();updateWorldNote();
+  itemSearch.value="";selectedItemId="";lastKey=null;drawItems();updateWorldNote();
   responseSection.hidden=true;
   showNotice("Saved settings and the tab's API key have been cleared.");
 });
@@ -104,7 +141,9 @@ form.addEventListener("submit",async(event)=>{
   if(!chosen.username.trim()||!chosen.clanName.trim()){
     showNotice("Username and clan name cannot be blank.","error");return;
   }
-  const key=keyInput.value,flags=worldFlags(chosen.membership,chosen.worldType);
+  const key=submissionKey(lastKey,keepKey.checked,()=>crypto.randomUUID());
+  lastKey=key;
+  const flags=worldFlags(chosen.membership,chosen.worldType);
   pending=true;submitButton.disabled=true;submitButton.textContent="Sending…";
   responseSection.hidden=true;showNotice("Uploading screenshot to "+target);
   remember();
@@ -125,10 +164,10 @@ form.addEventListener("submit",async(event)=>{
     responseBody.textContent=typeof result==="string"?result:JSON.stringify(result,null,2);
     responseDescription.textContent="HTTP "+response.status+" · Idempotency-Key: "+key;
     responseSection.hidden=false;
-    if(response.ok){showNotice("Accepted (HTTP "+response.status+"). Receipt below. A new UUID is ready.","success");newKey();}
-    else showNotice("Rejected (HTTP "+response.status+"). UUID retained for retry.","error");
+    if(response.ok)showNotice("Accepted (HTTP "+response.status+"). Receipt below.","success");
+    else showNotice("Rejected (HTTP "+response.status+"). See the response below.","error");
   }catch(error){
     showNotice("Browser request failed: "+error.message+
-      "\nVerify HTTPS, certificate, connectivity and CORS. The API/proxy must allow this Pages Origin and preflight OPTIONS for Idempotency-Key, X-Clan-API-Key-Base64 and Content-Type. The request result is unknown; this UUID is retained for safe retry.","error");
+      "\nVerify HTTPS, certificate, connectivity and CORS. The API/proxy must allow this Pages Origin and preflight OPTIONS for Idempotency-Key, X-Clan-API-Key-Base64 and Content-Type. The request outcome is unknown; keeping the same key for a retry requires enabling the idempotency checkbox before resubmitting.","error");
   }finally{pending=false;submitButton.disabled=false;submitButton.textContent="Send submission";}
 });

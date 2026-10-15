@@ -61,3 +61,8 @@ export function writeCookieSettings(settings,pathname,secure=true){
   return COOKIE_NAME+"="+encodeURIComponent(JSON.stringify(data))+
     "; Path="+cookiePath(pathname)+"; Max-Age=15552000; SameSite=Strict"+(secure?"; Secure":"");
 }
+
+/** Reuse the previous request only when the explicit checkbox is enabled. */
+export function submissionKey(lastKey,keepKey,createKey){
+  return keepKey&&lastKey?lastKey:createKey();
+}
