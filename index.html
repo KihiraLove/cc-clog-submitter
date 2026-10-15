@@ -6,13 +6,12 @@
 <title>Collection Log · Submission Tester</title>
 <link rel="stylesheet" href="./styles.css"></head>
 <body><main class="page-shell">
-<header class="hero"><p class="eyebrow">OSRS · INTERNAL API TEST TOOL</p>
-<h1>Collection Log<br><span>Submission Tester</span></h1></header>
+<header class="hero"><h1>Collection Log <span>Submission Tester</span></h1></header>
 <form id="submission-form" class="panel" autocomplete="off">
 <div class="section-heading"><h2>Connection</h2></div>
 <div class="fields">
-<label class="field full" for="endpoint">Endpoint<input id="endpoint" type="url" required placeholder="https://clog.example.com" spellcheck="false"></label>
-<label class="field full" for="api-key">Clan API key <span class="password-wrap"><input id="api-key" type="password" placeholder="Clan shared key" spellcheck="false" autocomplete="off"><button type="button" id="toggle-key" class="secondary">Show</button></span></label>
+<label class="field" for="endpoint">Endpoint<input id="endpoint" type="url" required placeholder="https://clog.example.com" spellcheck="false"></label>
+<label class="field" for="api-key">Clan API key <span class="password-wrap"><input id="api-key" type="password" placeholder="Clan shared key" spellcheck="false" autocomplete="off"><button type="button" id="toggle-key" class="secondary">Show</button></span></label>
 </div>
 <div class="section-heading separated"><h2>Submission</h2></div>
 <div class="fields">
@@ -26,17 +25,18 @@
 <p class="item-message">Loading catalogue…</p>
 </div>
 </div>
-<fieldset class="membership"><legend>World membership</legend><div class="segmented">
+<fieldset class="world-flags"><legend>Worlds flags</legend><div class="world-controls">
+<div class="segmented" role="group" aria-label="World membership">
 <label><input type="radio" name="membership" value="MEMBERS" checked><span>MEMBERS</span></label>
-<label><input type="radio" name="membership" value="F2P"><span>F2P</span></label></div></fieldset>
-<label class="field" for="world-type">Additional world type<select id="world-type">
+<label><input type="radio" name="membership" value="F2P"><span>F2P</span></label></div>
+<select id="world-type" aria-label="Additional world flag">
 <option value="">None</option>
 <option>PVP</option><option>HARDCORE_MAIN</option><option>BOUNTY</option>
 <option>HIGH_RISK</option><option>BETA_WORLD</option><option>DEADMAN</option>
 <option>FRESH_START_WORLD</option><option>LAST_MAN_STANDING</option>
 <option>NOSAVE_MODE</option><option>PVP_ARENA</option><option>QUEST_SPEEDRUNNING</option>
 <option>SEASONAL</option><option>SKILL_TOTAL</option><option>TOURNAMENT_WORLD</option>
-</select></label></div>
+</select></div></fieldset></div>
 <p id="world-note" class="inline-note" aria-live="polite"></p>
 <label class="idempotency-option" for="keep-idempotency-key">
 <input id="keep-idempotency-key" type="checkbox">

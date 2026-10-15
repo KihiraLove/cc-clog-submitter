@@ -24,15 +24,17 @@ function showNotice(message,kind=""){
   notice.hidden=false;notice.className="notice "+kind;notice.textContent=message;
 }
 function updateWorldNote(){
-  const flags=worldFlags(membership(),worldType.value),note=el("world-note");
-  note.className="inline-note";
+  const note=el("world-note");
+  note.hidden=false;
+  note.className="inline-note warn";
   if(BLOCKED_WORLD_TYPES.includes(worldType.value)){
-    note.className+=" warn";
     note.textContent=worldType.value+" worlds are deliberately rejected by the API (HTTP 403). Submit to test the rejection response.";
   }else if(worldType.value==="HARDCORE_MAIN"){
-    note.className+=" warn";
     note.textContent="HARDCORE_MAIN does not mark a submission as hardcore in the current API; only HC_WORLD_PLACEHOLDER / HC_WORLDS_PLACEHOLDER do.";
-  }else note.textContent="World flags sent: "+JSON.stringify(flags);
+  }else{
+    note.textContent="";
+    note.hidden=true;
+  }
 }
 function updateSelectedItem(){
   const item=allItems.find(entry=>entry.id===selectedItemId);
@@ -56,6 +58,7 @@ function drawItems(){
       button.dataset.itemId=item.id;
       button.setAttribute("aria-pressed",String(item.id===selectedItemId));
       button.textContent=item.name+" (ID "+item.id+")";
+      button.title=button.textContent;
       fragment.append(button);
     }
   }

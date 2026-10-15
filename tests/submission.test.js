@@ -73,3 +73,23 @@ test("requested copy removed and item picker uses accessible result buttons",asy
   assert.match(app,/button\.setAttribute\("aria-pressed"/u);
   assert.match(app,/body\.append\("screenshot",await sampleScreenshot\(\)\)/u);
 });
+
+test("compact form has a one-line heading and a single world flag row",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+  const css=await readFile(new URL("../styles.css",import.meta.url),"utf8");
+  const app=await readFile(new URL("../src/app.js",import.meta.url),"utf8");
+  assert.ok(!html.includes("OSRS · INTERNAL API TEST TOOL"));
+  assert.match(html,/<h1>Collection Log <span>Submission Tester<\/span><\/h1>/u);
+  assert.match(css,/white-space:\s*nowrap/u);
+  assert.match(html,/<fieldset class="world-flags"><legend>Worlds flags<\/legend><div class="world-controls">/u);
+  assert.ok(!html.includes("<legend>World membership</legend>"));
+  assert.ok(!html.includes(">Additional world type<"));
+  assert.match(html,/<select id="world-type" aria-label="Additional world flag">/u);
+  assert.match(css,/grid-auto-rows:\s*32px/u);
+  assert.match(css,/max-height:\s*154px/u);
+  assert.match(css,/align-items:\s*center/u);
+  assert.match(css,/input:not\(\[type="radio"\]\):not\(\[type="checkbox"\]\)/u);
+  assert.match(app,/button\.title=button\.textContent/u);
+  assert.match(app,/body\.append\("screenshot",await sampleScreenshot\(\)\)/u);
+});
