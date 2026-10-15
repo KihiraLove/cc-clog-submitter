@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="RuneLite collection log submission API test frontend">
+<title>Collection Log · Submission Tester</title>
+<link rel="stylesheet" href="./styles.css"></head>
+<body><main class="page-shell">
+<header class="hero"><div><p class="eyebrow">OSRS · INTERNAL API TEST TOOL</p>
+<h1>Collection Log<br><span>Submission Tester</span></h1>
+<p class="lede">Test your RuneLite collection-log submission API with a sample item and screenshot.</p></div>
+<a href="https://github.com/KihiraLove/cc-clog-submitter" rel="noopener noreferrer" target="_blank">GitHub ↗</a></header>
+<form id="submission-form" class="panel" autocomplete="off">
+<div class="section-heading"><h2>Connection</h2><p>The API key stays in this tab; other settings are saved in a cookie.</p></div>
+<div class="fields">
+<label class="field full" for="endpoint">Endpoint<input id="endpoint" type="url" required placeholder="https://clog.example.com" spellcheck="false"><small>HTTPS base URL or full /api/v1/runelite/submissions URL</small></label>
+<label class="field full" for="api-key">Clan API key <span class="password-wrap"><input id="api-key" type="password" placeholder="Clan shared key" spellcheck="false" autocomplete="off"><button type="button" id="toggle-key" class="secondary">Show</button></span><small>Leave blank only if the server has disabled key enforcement. Never saved in cookies.</small></label>
+</div>
+<div class="section-heading separated"><h2>Submission</h2><p>Fields sent to the API as multipart/form-data.</p></div>
+<div class="fields">
+<label class="field" for="username">Username<input id="username" required maxlength="80" placeholder="Collector"></label>
+<label class="field" for="clan-name">Clan name<input id="clan-name" required maxlength="80" placeholder="Vardorvis"></label>
+<label class="field full" for="item-search">Search items<input id="item-search" type="search" placeholder="Search name or OSRS game item ID..."><small id="item-count">Loading catalogue…</small></label>
+<label class="field full" for="item-id">Item<select id="item-id" required disabled><option value="">Loading…</option></select></label>
+<fieldset class="membership"><legend>World membership</legend><div class="segmented">
+<label><input type="radio" name="membership" value="MEMBERS" checked><span>MEMBERS</span></label>
+<label><input type="radio" name="membership" value="F2P"><span>F2P</span></label></div></fieldset>
+<label class="field" for="world-type">Additional world type<select id="world-type">
+<option value="">None</option>
+<option>PVP</option><option>HARDCORE_MAIN</option><option>BOUNTY</option>
+<option>HIGH_RISK</option><option>BETA_WORLD</option><option>DEADMAN</option>
+<option>FRESH_START_WORLD</option><option>LAST_MAN_STANDING</option>
+<option>NOSAVE_MODE</option><option>PVP_ARENA</option><option>QUEST_SPEEDRUNNING</option>
+<option>SEASONAL</option><option>SKILL_TOTAL</option><option>TOURNAMENT_WORLD</option>
+</select></label></div>
+<p id="world-note" class="inline-note" aria-live="polite"></p>
+<div class="proof-grid"><div><h3>Screenshot</h3><p>The attached dummy PNG is bundled and sent with each request.</p></div>
+<img id="screenshot-preview" src="./assets/dummy-submission.png" width="1920" height="1080" alt="Dummy submission, written in black pixelated letters on a white image"></div>
+<div class="request-bar"><label for="idempotency-key">Idempotency key (UUID)<input id="idempotency-key" readonly spellcheck="false"><small>Retained after failed requests for safe retries.</small></label><button type="button" id="new-key" class="secondary">New key</button></div>
+<div class="controls"><button type="submit" id="submit" class="primary">Send submission</button><button type="button" id="clear-settings" class="secondary">Clear saved settings</button></div>
+<div id="notice" class="notice" hidden role="status" aria-live="polite"></div>
+</form>
+<section id="response-section" class="panel response-panel" hidden><h2>API response</h2><p id="response-description"></p><pre id="response-body" tabindex="0"></pre></section>
+<footer><p>Static frontend · Sends requests only to your configured endpoint · Key stays in memory</p>
+<a href="https://github.com/KihiraLove/Vardorvis-clan-clog/blob/main/docs/runelite-submissions.md" target="_blank" rel="noopener noreferrer">Submission API documentation ↗</a></footer>
+</main><script type="module" src="./src/app.js"></script></body></html>

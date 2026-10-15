@@ -1,0 +1,10 @@
+{
+  "name": "cc-clog-submitter",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=20"},
+  "scripts": {
+    "test": "node --test",
+    "validate": "node --check src/app.js && node --check src/submission.js && node --test"
+  }
+}
