@@ -1,12 +1,13 @@
 import {
   BLOCKED_WORLD_TYPES, COOKIE_NAME, cookiePath, encodeClanKey, itemOptions,
-  normalizeEndpoint, readCookieSettings, submissionKey, worldFlags, writeCookieSettings
+  createSubmissionBody, normalizeEndpoint, readCookieSettings, submissionKey, worldFlags, writeCookieSettings
 } from "./submission.js";
 const el=(id)=>document.getElementById(id);
 const form=el("submission-form"),endpoint=el("endpoint"),clanKey=el("api-key");
 const username=el("username"),clanName=el("clan-name"),itemSearch=el("item-search");
 const itemResults=el("item-results"),selectedItem=el("selected-item"),worldType=el("world-type");
-const keepKey=el("keep-idempotency-key"),notice=el("notice"),submitButton=el("submit");
+const keepKey=el("keep-idempotency-key"),includeScreenshot=el("include-screenshot");
+const chatMessage=el("chat-message"),notice=el("notice"),submitButton=el("submit");
 const responseSection=el("response-section"),responseBody=el("response-body");
 const responseDescription=el("response-description");
 const saved=readCookieSettings(document.cookie);
@@ -15,7 +16,8 @@ function membership(){return form.querySelector('input[name="membership"]:checke
 
 function preferences(){
   return {endpoint:endpoint.value,username:username.value,clanName:clanName.value,
-    itemId:selectedItemId,membership:membership(),worldType:worldType.value};
+    itemId:selectedItemId,membership:membership(),worldType:worldType.value,
+    chatMessage:chatMessage.value,includeScreenshot:String(includeScreenshot.checked)};
 }
 function remember(){
   document.cookie=writeCookieSettings(preferences(),location.pathname,location.protocol==="https:");
@@ -96,12 +98,14 @@ endpoint.value=saved.endpoint||"";
 username.value=saved.username||"";
 clanName.value=saved.clanName||"";
 worldType.value=saved.worldType||"";
+chatMessage.value=saved.chatMessage||"";
+includeScreenshot.checked=saved.includeScreenshot!=="false";
 form.querySelector('input[name="membership"][value="'+(saved.membership==="F2P"?"F2P":"MEMBERS")+'"]').checked=true;
 updateWorldNote();void loadItems();
-for(const field of [endpoint,username,clanName,worldType]){
+for(const field of [endpoint,username,clanName,worldType,chatMessage,includeScreenshot]){
   field.addEventListener("change",()=>{if(!pending){remember();updateWorldNote();}});
 }
-for(const field of [endpoint,username,clanName]){
+for(const field of [endpoint,username,clanName,chatMessage]){
   field.addEventListener("input",()=>{if(!pending)remember();});
 }
 for(const radio of form.querySelectorAll('input[name="membership"]'))
@@ -127,7 +131,8 @@ el("clear-settings").addEventListener("click",()=>{
   document.cookie=COOKIE_NAME+"=; Path="+cookiePath(location.pathname)+"; Max-Age=0; SameSite=Strict"+
     (location.protocol==="https:"?"; Secure":"");
   form.reset();endpoint.value="";username.value="";clanName.value="";clanKey.value="";
-  itemSearch.value="";selectedItemId="";lastKey=null;drawItems();updateWorldNote();
+  itemSearch.value="";selectedItemId="";lastKey=null;chatMessage.value="";
+  includeScreenshot.checked=true;drawItems();updateWorldNote();
   responseSection.hidden=true;
   showNotice("Saved settings and the tab's API key have been cleared.");
 });
@@ -148,15 +153,11 @@ form.addEventListener("submit",async(event)=>{
   lastKey=key;
   const flags=worldFlags(chosen.membership,chosen.worldType);
   pending=true;submitButton.disabled=true;submitButton.textContent="Sending…";
-  responseSection.hidden=true;showNotice("Uploading screenshot to "+target);
+  responseSection.hidden=true;showNotice("Sending submission to "+target);
   remember();
   try{
-    const body=new FormData();
-    body.append("username",chosen.username);
-    body.append("clanName",chosen.clanName);
-    body.append("itemId",chosen.itemId);
-    body.append("worldType",JSON.stringify(flags));
-    body.append("screenshot",await sampleScreenshot());
+    const screenshotFile=includeScreenshot.checked?await sampleScreenshot():null;
+    const body=createSubmissionBody({...chosen,worldTypes:flags},screenshotFile);
     const headers={"Idempotency-Key":key};
     if(clanKey.value)headers["X-Clan-API-Key-Base64"]=encodeClanKey(clanKey.value);
     const response=await fetch(target,{method:"POST",headers,body,mode:"cors",

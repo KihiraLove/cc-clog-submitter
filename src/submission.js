@@ -46,7 +46,7 @@ export function readCookieSettings(cookies){
     const obj=JSON.parse(decodeURIComponent(part.slice(COOKIE_NAME.length+1)));
     if(!obj||typeof obj!=="object"||Array.isArray(obj))return {};
     const result={};
-    for(const name of ["endpoint","username","clanName","itemId","membership","worldType"])
+    for(const name of ["endpoint","username","clanName","itemId","membership","worldType","chatMessage","includeScreenshot"])
       if(typeof obj[name]==="string")result[name]=obj[name];
     return result;
   }catch{return {};}
@@ -56,7 +56,7 @@ export function cookiePath(pathname){
 }
 export function writeCookieSettings(settings,pathname,secure=true){
   const data={};
-  for(const name of ["endpoint","username","clanName","itemId","membership","worldType"])
+  for(const name of ["endpoint","username","clanName","itemId","membership","worldType","chatMessage","includeScreenshot"])
     if(typeof settings[name]==="string")data[name]=settings[name];
   return COOKIE_NAME+"="+encodeURIComponent(JSON.stringify(data))+
     "; Path="+cookiePath(pathname)+"; Max-Age=15552000; SameSite=Strict"+(secure?"; Secure":"");
@@ -65,4 +65,21 @@ export function writeCookieSettings(settings,pathname,secure=true){
 /** Reuse the previous request only when the explicit checkbox is enabled. */
 export function submissionKey(lastKey,keepKey,createKey){
   return keepKey&&lastKey?lastKey:createKey();
+}
+
+/** The API requires chatMessage; blank input uses a deterministic sample. */
+export function effectiveChatMessage(value){
+  return typeof value==="string"&&value.trim()?value:"dummy text";
+}
+
+/** Optional screenshot is completely omitted when disabled. */
+export function createSubmissionBody(fields,screenshotFile=null){
+  const body=new FormData();
+  body.append("username",fields.username);
+  body.append("clanName",fields.clanName);
+  body.append("itemId",fields.itemId);
+  body.append("worldType",JSON.stringify(fields.worldTypes));
+  body.append("chatMessage",effectiveChatMessage(fields.chatMessage));
+  if(screenshotFile)body.append("screenshot",screenshotFile,"dummy-submission.png");
+  return body;
 }

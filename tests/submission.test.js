@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   EXTRA_WORLD_TYPES,BLOCKED_WORLD_TYPES,COOKIE_NAME,worldFlags,
-  normalizeEndpoint,itemOptions,encodeClanKey,readCookieSettings,writeCookieSettings,submissionKey
+  normalizeEndpoint,itemOptions,encodeClanKey,readCookieSettings,writeCookieSettings,submissionKey,
+  createSubmissionBody,effectiveChatMessage
 } from "../src/submission.js";
 test("14 supported extra world types and membership",()=>{
   assert.equal(EXTRA_WORLD_TYPES.length,14);
@@ -71,7 +72,7 @@ test("requested copy removed and item picker uses accessible result buttons",asy
   assert.match(html,/id="keep-idempotency-key" type="checkbox"/u);
   assert.match(html,/Don't regenerate idempotency key \(only check this if you know what you're doing\)/u);
   assert.match(app,/button\.setAttribute\("aria-pressed"/u);
-  assert.match(app,/body\.append\("screenshot",await sampleScreenshot\(\)\)/u);
+  assert.match(app,/createSubmissionBody\(\{\.\.\.chosen,worldTypes:flags\},screenshotFile\)/u);
 });
 
 test("compact form has a one-line heading and a single world flag row",async()=>{
@@ -91,5 +92,35 @@ test("compact form has a one-line heading and a single world flag row",async()=>
   assert.match(css,/align-items:\s*center/u);
   assert.match(css,/input:not\(\[type="radio"\]\):not\(\[type="checkbox"\]\)/u);
   assert.match(app,/button\.title=button\.textContent/u);
-  assert.match(app,/body\.append\("screenshot",await sampleScreenshot\(\)\)/u);
+  assert.match(app,/createSubmissionBody\(\{\.\.\.chosen,worldTypes:flags\},screenshotFile\)/u);
+});
+
+test("chat message sends dummy text when empty or whitespace",()=>{
+  assert.equal(effectiveChatMessage(""),"dummy text");
+  assert.equal(effectiveChatMessage("   \t"),"dummy text");
+  assert.equal(effectiveChatMessage("Drop received"),"Drop received");
+});
+test("multipart always includes chatMessage and optionally the screenshot",()=>{
+  const fields={username:"Collector",clanName:"Clan",itemId:"4151",worldTypes:["MEMBERS"],chatMessage:""};
+  const plain=createSubmissionBody(fields);
+  assert.deepEqual([...plain.keys()],["username","clanName","itemId","worldType","chatMessage"]);
+  assert.equal(plain.get("chatMessage"),"dummy text");
+  assert.equal(plain.has("screenshot"),false);
+  const screenshot=new Blob([new Uint8Array([137,80,78,71])],{type:"image/png"});
+  const withFile=createSubmissionBody({...fields,chatMessage:"An item!"},screenshot);
+  assert.equal(withFile.get("chatMessage"),"An item!");
+  assert.equal(withFile.get("screenshot").name,"dummy-submission.png");
+  assert.equal(withFile.get("screenshot").type,"image/png");
+});
+test("screenshot preference defaults to included and can be disabled without saving API key",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+  const app=await readFile(new URL("../src/app.js",import.meta.url),"utf8");
+  assert.match(html,/<input id="chat-message" type="text" placeholder="dummy text"/u);
+  assert.match(html,/<input id="include-screenshot" type="checkbox" checked>/u);
+  assert.match(app,/includeScreenshot\.checked\?await sampleScreenshot\(\):null/u);
+  assert.match(app,/includeScreenshot\.checked=saved\.includeScreenshot!=="false"/u);
+  const cookie=writeCookieSettings({chatMessage:"Hello",includeScreenshot:"false",apiKey:"NEVER_STORE"},"/cc-clog-submitter/");
+  assert.ok(!cookie.includes("NEVER_STORE"));
+  assert.deepEqual(readCookieSettings(cookie.split(";")[0]),{chatMessage:"Hello",includeScreenshot:"false"});
 });

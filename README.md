@@ -11,6 +11,11 @@ POST /api/v1/runelite/submissions with multipart:
 - clanName: non-empty, max 80 characters
 - itemId: OSRS game item ID
 - worldType: JSON array of world flags
-- screenshot: PNG, maximum 10 MiB (a sample picture is attached in the tool)
+- chatMessage: required text; blank or whitespace input sends `dummy text`
+- screenshot: optional PNG, maximum 10 MiB; included by default using the bundled sample screenshot
 
 Headers: Idempotency-Key: UUID and optionally X-Clan-API-Key-Base64: Base64url-encoded (not encrypted) UTF-8 key.
+
+The chat message and screenshot-inclusion setting are saved in a first-party cookie with the other non-secret preferences. The API key is never saved.
+
+**API compatibility:** The currently published backend version on GitHub still requires a screenshot and does not accept chatMessage. This frontend targets the newer API contract when that version becomes available.
