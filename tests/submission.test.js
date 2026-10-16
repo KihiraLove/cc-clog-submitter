@@ -124,3 +124,13 @@ test("screenshot preference defaults to included and can be disabled without sav
   assert.ok(!cookie.includes("NEVER_STORE"));
   assert.deepEqual(readCookieSettings(cookie.split(";")[0]),{chatMessage:"Hello",includeScreenshot:"false"});
 });
+
+test("dummy screenshot label and background cover the full viewport",async()=>{
+  const {readFile}=await import("node:fs/promises");
+  const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
+  const css=await readFile(new URL("../styles.css",import.meta.url),"utf8");
+  assert.match(html,/<span>Include dummy screenshot<\/span>/u);
+  assert.ok(!html.includes("<span>Include screenshot</span>"));
+  assert.match(css,/min-height:\s*100vh/u);
+  assert.match(css,/background-attachment:\s*fixed/u);
+});
