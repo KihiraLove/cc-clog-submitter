@@ -19,7 +19,7 @@ export function normalizeEndpoint(input){
   if(url.protocol!=="https:"||!url.hostname||url.username||url.password||url.hash||url.search)
     throw new Error("Use an HTTPS endpoint without URL credentials, a query or a fragment.");
   let path=url.pathname.replace(/\/+$/u,"");
-  if(path.endsWith("/api/v1/runelite/submissions"))return url.toString();
+  if(path.endsWith("/api/v1/runelite/submissions")){url.pathname=path;return url.toString();}
   if(path.endsWith("/api/v1"))path+="/runelite/submissions";
   else if(path.endsWith("/api"))path+="/v1/runelite/submissions";
   else path+="/api/v1/runelite/submissions";
@@ -78,6 +78,7 @@ export function createSubmissionBody(fields,screenshotFile=null){
   body.append("username",fields.username);
   body.append("clanName",fields.clanName);
   body.append("itemId",fields.itemId);
+  if(typeof fields.itemName==="string"&&fields.itemName.trim())body.append("itemName",fields.itemName);
   body.append("worldType",JSON.stringify(fields.worldTypes));
   body.append("chatMessage",effectiveChatMessage(fields.chatMessage));
   if(screenshotFile)body.append("screenshot",screenshotFile,"dummy-submission.png");

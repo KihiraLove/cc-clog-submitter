@@ -32,7 +32,7 @@ function updateWorldNote(){
   if(BLOCKED_WORLD_TYPES.includes(worldType.value)){
     note.textContent=worldType.value+" worlds are deliberately rejected by the API (HTTP 403). Submit to test the rejection response.";
   }else if(worldType.value==="HARDCORE_MAIN"){
-    note.textContent="HARDCORE_MAIN does not mark a submission as hardcore in the current API; only HC_WORLD_PLACEHOLDER / HC_WORLDS_PLACEHOLDER do.";
+    note.textContent="HARDCORE_MAIN marks the submission as hardcore in the current API.";
   }else{
     note.textContent="";
     note.hidden=true;
@@ -143,35 +143,49 @@ form.addEventListener("submit",async(event)=>{
   try{target=normalizeEndpoint(endpoint.value);}
   catch(error){showNotice(error.message,"error");return;}
   const chosen=preferences();
-  if(!chosen.itemId||!allItems.some(item=>item.id===chosen.itemId)){
+  const chosenItem=allItems.find(item=>item.id===chosen.itemId);
+  if(!chosenItem){
     showNotice("Choose an item from the catalogue.","error");return;
+  }
+  if(chosenItem.name.length>200){
+    showNotice("The selected item name exceeds the API's 200-character limit.","error");return;
   }
   if(!chosen.username.trim()||!chosen.clanName.trim()){
     showNotice("Username and clan name cannot be blank.","error");return;
   }
-  const key=submissionKey(lastKey,keepKey.checked,()=>crypto.randomUUID());
-  lastKey=key;
   const flags=worldFlags(chosen.membership,chosen.worldType);
   pending=true;submitButton.disabled=true;submitButton.textContent="Sending…";
-  responseSection.hidden=true;showNotice("Sending submission to "+target);
-  remember();
+  responseSection.hidden=true;remember();
   try{
-    const screenshotFile=includeScreenshot.checked?await sampleScreenshot():null;
-    const body=createSubmissionBody({...chosen,worldTypes:flags},screenshotFile);
+    let body;
+    try{
+      const screenshotFile=includeScreenshot.checked?await sampleScreenshot():null;
+      body=createSubmissionBody({...chosen,itemName:chosenItem.name,worldTypes:flags},screenshotFile);
+    }catch(error){
+      showNotice("Could not prepare submission: "+error.message+" The API was not contacted.","error");
+      return;
+    }
+    const key=submissionKey(lastKey,keepKey.checked,()=>crypto.randomUUID());
+    lastKey=key;
     const headers={"Idempotency-Key":key};
     if(clanKey.value)headers["X-Clan-API-Key-Base64"]=encodeClanKey(clanKey.value);
-    const response=await fetch(target,{method:"POST",headers,body,mode:"cors",
-      credentials:"omit",redirect:"error",cache:"no-store",referrerPolicy:"no-referrer"});
-    const raw=await response.text();
-    let result;
-    try{result=JSON.parse(raw);}catch{result=raw||"(empty response)";}
-    responseBody.textContent=typeof result==="string"?result:JSON.stringify(result,null,2);
-    responseDescription.textContent="HTTP "+response.status+" · Idempotency-Key: "+key;
-    responseSection.hidden=false;
-    if(response.ok)showNotice("Accepted (HTTP "+response.status+"). Receipt below.","success");
-    else showNotice("Rejected (HTTP "+response.status+"). See the response below.","error");
-  }catch(error){
-    showNotice("Browser request failed: "+error.message+
-      "\nVerify HTTPS, certificate, connectivity and CORS. The API/proxy must allow this Pages Origin and preflight OPTIONS for Idempotency-Key, X-Clan-API-Key-Base64 and Content-Type. The request outcome is unknown; keeping the same key for a retry requires enabling the idempotency checkbox before resubmitting.","error");
+    showNotice("Sending submission to "+target);
+    try{
+      const response=await fetch(target,{method:"POST",headers,body,mode:"cors",
+        credentials:"omit",redirect:"error",cache:"no-store",referrerPolicy:"no-referrer"});
+      const raw=await response.text();
+      let result;
+      try{result=JSON.parse(raw);}catch{result=raw||"(empty response)";}
+      responseBody.textContent=typeof result==="string"?result:JSON.stringify(result,null,2);
+      responseDescription.textContent="HTTP "+response.status+" · Idempotency-Key: "+key;
+      responseSection.hidden=false;
+      if(response.ok)showNotice("Accepted (HTTP "+response.status+"). Receipt below.","success");
+      else showNotice("Rejected (HTTP "+response.status+"). See the response below.","error");
+    }catch(error){
+      showNotice("Browser request failed: "+error.message+
+        "\nInspect the browser Network tab for OPTIONS and POST to "+target+
+        ". The preflight must allow origin "+location.origin+
+        " and headers Idempotency-Key, X-Clan-API-Key-Base64 and Content-Type. Check for redirects (this client blocks them), failed TLS/network connections, or missing CORS headers on either response. If the POST reached the API, its outcome is unknown: check the idempotency checkbox before retrying the unchanged submission.","error");
+    }
   }finally{pending=false;submitButton.disabled=false;submitButton.textContent="Send submission";}
 });

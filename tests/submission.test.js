@@ -17,6 +17,8 @@ test("HTTPS endpoint resolution",()=>{
   assert.equal(normalizeEndpoint("https://example.test"),"https://example.test/api/v1/runelite/submissions");
   assert.equal(normalizeEndpoint("https://example.test/api/v1"),"https://example.test/api/v1/runelite/submissions");
   assert.equal(normalizeEndpoint("https://example.test/api/v1/runelite/submissions"),"https://example.test/api/v1/runelite/submissions");
+  assert.equal(normalizeEndpoint("https://example.test/api/v1/runelite/submissions/"),"https://example.test/api/v1/runelite/submissions");
+  assert.equal(normalizeEndpoint("https://example.test/api/v1/"),"https://example.test/api/v1/runelite/submissions");
   for(const input of ["http://example.test","https://a.test/?key=secret","https://user:pass@a.test"])
     assert.throws(()=>normalizeEndpoint(input));
 });
@@ -72,7 +74,7 @@ test("requested copy removed and item picker uses accessible result buttons",asy
   assert.match(html,/id="keep-idempotency-key" type="checkbox"/u);
   assert.match(html,/Don't regenerate idempotency key \(only check this if you know what you're doing\)/u);
   assert.match(app,/button\.setAttribute\("aria-pressed"/u);
-  assert.match(app,/createSubmissionBody\(\{\.\.\.chosen,worldTypes:flags\},screenshotFile\)/u);
+  assert.match(app,/createSubmissionBody\(\{\.\.\.chosen,itemName:chosenItem\.name,worldTypes:flags\},screenshotFile\)/u);
 });
 
 test("compact form has a one-line heading and a single world flag row",async()=>{
@@ -92,7 +94,7 @@ test("compact form has a one-line heading and a single world flag row",async()=>
   assert.match(css,/align-items:\s*center/u);
   assert.match(css,/input:not\(\[type="radio"\]\):not\(\[type="checkbox"\]\)/u);
   assert.match(app,/button\.title=button\.textContent/u);
-  assert.match(app,/createSubmissionBody\(\{\.\.\.chosen,worldTypes:flags\},screenshotFile\)/u);
+  assert.match(app,/createSubmissionBody\(\{\.\.\.chosen,itemName:chosenItem\.name,worldTypes:flags\},screenshotFile\)/u);
 });
 
 test("chat message sends dummy text when empty or whitespace",()=>{
@@ -101,10 +103,12 @@ test("chat message sends dummy text when empty or whitespace",()=>{
   assert.equal(effectiveChatMessage("Drop received"),"Drop received");
 });
 test("multipart always includes chatMessage and optionally the screenshot",()=>{
-  const fields={username:"Collector",clanName:"Clan",itemId:"4151",worldTypes:["MEMBERS"],chatMessage:""};
+  const fields={username:"Collector",clanName:"Clan",itemId:"4151",itemName:"Abyssal whip",worldTypes:["MEMBERS"],chatMessage:""};
   const plain=createSubmissionBody(fields);
-  assert.deepEqual([...plain.keys()],["username","clanName","itemId","worldType","chatMessage"]);
+  assert.deepEqual([...plain.keys()],["username","clanName","itemId","itemName","worldType","chatMessage"]);
+  assert.equal(plain.get("itemName"),"Abyssal whip");
   assert.equal(plain.get("chatMessage"),"dummy text");
+  assert.equal(createSubmissionBody({...fields,itemName:""}).has("itemName"),false);
   assert.equal(plain.has("screenshot"),false);
   const screenshot=new Blob([new Uint8Array([137,80,78,71])],{type:"image/png"});
   const withFile=createSubmissionBody({...fields,chatMessage:"An item!"},screenshot);
@@ -120,6 +124,10 @@ test("screenshot preference defaults to included and can be disabled without sav
   assert.match(html,/<input id="include-screenshot" type="checkbox" checked>/u);
   assert.match(app,/includeScreenshot\.checked\?await sampleScreenshot\(\):null/u);
   assert.match(app,/includeScreenshot\.checked=saved\.includeScreenshot!=="false"/u);
+  assert.match(app,/const chosenItem=allItems\.find\(item=>item\.id===chosen\.itemId\)/u);
+  assert.match(app,/HARDCORE_MAIN marks the submission as hardcore/u);
+  assert.match(app,/The API was not contacted/u);
+  assert.match(app,/The preflight must allow origin /u);
   const cookie=writeCookieSettings({chatMessage:"Hello",includeScreenshot:"false",apiKey:"NEVER_STORE"},"/cc-clog-submitter/");
   assert.ok(!cookie.includes("NEVER_STORE"));
   assert.deepEqual(readCookieSettings(cookie.split(";")[0]),{chatMessage:"Hello",includeScreenshot:"false"});
